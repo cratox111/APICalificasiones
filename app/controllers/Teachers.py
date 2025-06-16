@@ -1,5 +1,6 @@
 from flask import jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app import db
 from app.models.Teachers import Profesor
 from app.models.Class import Classes
@@ -49,7 +50,28 @@ def loginUser():
     if not profesor or not check_password_hash(profesor.password, password):
         return jsonify({'message': 'Incorrect email or password'})
     
-    return jsonify({'message': 'Login successful'})
+    access_token = create_access_token(identity=profesor.id)
     
+    return jsonify({'message': 'Login successful'})
+
+@jwt_required()
 def createClass():
     inputData = request.get_json()
+    current_user = get_jwt_identity()
+
+    if not inputData:
+        return jsonify({'message':'No data provided'})
+
+    name = inputData.get('name')
+    lounge = inputData.get('lounge')
+    hour = inputData.get('hour')
+    max_students = inputData.get('max_students')
+
+    if not name or not lounge or not hour or not max_students:
+        return jsonify({'message':'data is missing'})
+    
+    classe = Classes(name=name, lounge=lounge, hour=hour, max_students=max_students, teacher=current_user)
+
+    db.session.add(classe)
+    db.session.commit()
+    return jsonify({'message':'class created'})
